@@ -20,6 +20,7 @@ import {
 
 import { Header } from "@/components/site/Header";
 import { MobileCta } from "@/components/site/MobileCta";
+import { supabase } from "@/lib/supabase";
 import heroBar from "@/assets/hero-bar.jpg";
 import cocktails from "@/assets/cocktails.jpg";
 import food from "@/assets/food.jpg";
@@ -482,6 +483,42 @@ function Infos() {
 
 function Reservation() {
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage("");
+
+    const form = new FormData(e.currentTarget);
+    const payload = {
+      nom: form.get("nom"),
+      tel: form.get("tel"),
+      date: form.get("date"),
+      heure: form.get("heure"),
+      pax: form.get("pax"),
+      occasion: form.get("occasion"),
+      message: form.get("message"),
+    };
+
+    const { data, error } = await supabase.functions.invoke("reserve", {
+      body: payload,
+    });
+
+    setLoading(false);
+
+    if (error || !data?.success) {
+      setErrorMessage(
+        data?.error ?? "Oups, un souci technique. Appelle-nous directement au 06 12 42 61 32 !",
+      );
+      return;
+    }
+
+    setConfirmationMessage(data.message);
+    setSent(true);
+  }
 
   return (
     <section id="reservation" className="mx-auto max-w-3xl px-4 py-16 lg:py-24">
@@ -489,22 +526,16 @@ function Reservation() {
       {sent ? (
         <div className="card-pop p-8 text-center">
           <Sparkles className="mx-auto size-8 text-secondary" />
-          <h3 className="mt-3 font-display text-2xl font-bold">C'est noté, merci !</h3>
+          <h3 className="mt-3 font-display text-2xl font-bold">{confirmationMessage}</h3>
           <p className="mt-2 text-muted-foreground">
-            On te recontacte très vite pour confirmer. Une urgence de dernière minute ?{" "}
+            Une urgence de dernière minute ?{" "}
             <a href="tel:+33612426132" className="text-secondary underline">
               06 12 42 61 32
             </a>
           </p>
         </div>
       ) : (
-        <form
-          className="card-pop grid gap-4 p-6 sm:grid-cols-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSent(true);
-          }}
-        >
+        <form className="card-pop grid gap-4 p-6 sm:grid-cols-2" onSubmit={handleSubmit}>
           <Field label="Prénom & nom" name="nom" />
           <Field label="Téléphone" name="tel" type="tel" />
           <Field label="Date" name="date" type="date" />
@@ -538,8 +569,17 @@ function Reservation() {
               placeholder="Allergies, poussette, envie d'un cocktail géant..."
             />
           </div>
-          <button type="submit" className="btn-pop sm:col-span-2">
-            Envoyer ma demande
+
+          {errorMessage && (
+            <p className="text-sm text-destructive sm:col-span-2">{errorMessage}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-pop sm:col-span-2 disabled:opacity-60"
+          >
+            {loading ? "Envoi en cours..." : "Envoyer ma demande"}
           </button>
           <p className="text-center text-xs text-muted-foreground sm:col-span-2">
             Réponse par téléphone. Tu peux aussi nous appeler directement au 06 12 42 61 32.
