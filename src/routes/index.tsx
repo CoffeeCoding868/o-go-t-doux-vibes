@@ -20,7 +20,6 @@ import {
 
 import { Header } from "@/components/site/Header";
 import { MobileCta } from "@/components/site/MobileCta";
-import { supabase } from "@/lib/supabase";
 import heroBar from "@/assets/hero-bar.jpg";
 import cocktails from "@/assets/cocktails.jpg";
 import food from "@/assets/food.jpg";
@@ -503,21 +502,36 @@ function Reservation() {
       message: form.get("message"),
     };
 
-    const { data, error } = await supabase.functions.invoke("reserve", {
-      body: payload,
-    });
-
-    setLoading(false);
-
-    if (error || !data?.success) {
-      setErrorMessage(
-        data?.error ?? "Oups, un souci technique. Appelle-nous directement au 06 12 42 61 32 !",
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reserve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(payload),
+        },
       );
-      return;
-    }
 
-    setConfirmationMessage(data.message);
-    setSent(true);
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        setErrorMessage(
+          data?.error ?? "Oups, un souci technique. Appelle-nous directement au 06 12 42 61 32 !",
+        );
+        return;
+      }
+
+      setConfirmationMessage(data.message);
+      setSent(true);
+    } catch {
+      setErrorMessage("Oups, impossible de nous joindre. Appelle-nous au 06 12 42 61 32 !");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
